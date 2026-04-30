@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Among Us: Education Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+        .ship-grid {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .animate-spin-slow { animation: spin 8s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .player-transition { transition: all 0.1s linear; }
+        [hidden] { display: none !important; }
+        .task-modal { backdrop-filter: blur(8px); }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="h-screen flex flex-col relative">
+        <!-- Navigation Bar -->
+        <nav class="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center z-50">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center shadow-lg">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight uppercase">Among Us <span class="text-blue-400">Edu</span></h1>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="switchView('lobby')" id="btn-lobby" class="px-4 py-1.5 rounded-lg bg-blue-600 font-bold transition text-sm">Lobby</button>
+                <button onclick="switchView('teacher')" id="btn-teacher" class="px-4 py-1.5 rounded-lg hover:bg-slate-700 font-bold transition text-sm">Teacher Mode</button>
+            </div>
+        </nav>
+
+        <!-- View: Lobby -->
+        <div id="view-lobby" class="flex-1 p-6 overflow-auto">
+            <div class="max-w-2xl mx-auto space-y-6 mt-10">
+                <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center">
+                    <h2 class="text-4xl font-black mb-2 italic">WAITING ROOM</h2>
+                    <p class="text-slate-400 mb-6 text-lg" id="player-count">Players: 0 / 10</p>
+                    <div id="player-list" class="grid grid-cols-2 gap-4 mb-8"></div>
+                    <button onclick="startGame()" id="start-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-5 rounded-2xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 text-xl tracking-widest">
+                        START MISSION
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Game -->
+        <div id="view-game" class="flex-1 relative overflow-hidden flex flex-col items-center" hidden>
+            <!-- Hud Overlay -->
+            <div class="absolute top-4 left-4 right-4 flex justify-between z-40 pointer-events-none">
+                <div class="bg-black/70 p-4 rounded-xl border border-white/10 text-white flex gap-6 shadow-2xl">
+                    <div>
+                        <span class="text-xs text-slate-400 block uppercase font-bold">Time Remaining</span>
+                        <span id="timer-display" class="text-2xl font-mono font-bold text-yellow-400">05:00</span>
+                    </div>
+                    <div class="border-l border-white/10 pl-6">
+                        <span class="text-xs text-slate-400 block uppercase font-bold">Total Tasks</span>
+                        <span id="task-progress" class="text-2xl font-mono font-bold text-green-400">0 / 0</span>
+                    </div>
+                </div>
+                <div id="role-container" class="bg-black/70 p-4 rounded-xl border border-white/10 text-center shadow-2xl">
+                    <span class="text-xs text-slate-400 block uppercase font-bold">Identity</span>
+                    <span id="role-badge" class="text-xl font-black tracking-widest uppercase">CREWMATE</span>
+                </div>
+            </div>
+
+            <!-- Interaction Button (Floating) -->
+            <div id="action-btn-container" class="absolute bottom-10 right-10 z-50 pointer-events-auto" hidden>
+                <button id="main-action-btn" class="w-24 h-24 rounded-full bg-blue-600 border-4 border-white/20 shadow-2xl font-black text-white hover:bg-blue-500 active:scale-90 transition transform uppercase tracking-tighter">
+                    Use
+                </button>
+            </div>
+
+            <!-- Game Map -->
+            <div id="game-map" class="relative bg-slate-950 w-full h-full overflow-hidden">
+                <div id="map-content" class="absolute w-[1500px] h-[1500px] ship-grid">
+                    <!-- Dynamic Assets -->
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Teacher Mode -->
+        <div id="view-teacher" class="flex-1 p-6 overflow-auto" hidden>
+            <div class="max-w-4xl mx-auto space-y-6">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                    <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">👨‍🏫 Question Database</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input id="q-text" type="text" placeholder="Question (e.g. 12 + 15 = ?)" class="bg-slate-900 border border-slate-600 p-3 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                        <input id="q-ans" type="text" placeholder="Answer" class="bg-slate-900 border border-slate-600 p-3 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <button onclick="addQuestion()" class="mt-4 bg-purple-600 hover:bg-purple-500 px-8 py-3 rounded-xl font-bold transition w-full shadow-lg">Save Question</button>
+                </div>
+                <div id="question-list" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- Task Modal -->
+        <div id="task-window" class="fixed inset-0 z-[100] flex items-center justify-center p-4 task-modal" hidden>
+            <div class="bg-slate-800 border-2 border-blue-500 w-full max-w-md p-8 rounded-3xl shadow-2xl relative">
+                <button onclick="closeTask()" class="absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+                <h3 class="text-blue-400 font-black uppercase tracking-widest mb-6">Terminal Access</h3>
+                <div id="task-content">
+                    <p id="task-question" class="text-2xl font-bold mb-6 text-center">No Question Loaded</p>
+                    <input id="task-input" type="text" class="w-full bg-slate-900 p-4 rounded-xl text-center text-xl mb-4 border border-slate-700 outline-none focus:border-blue-500" placeholder="Type answer here...">
+                    <button onclick="submitTask()" class="w-full bg-blue-600 py-4 rounded-xl font-black text-white hover:bg-blue-500">SUBMIT</button>
+                </div>
+                <div id="task-success" class="hidden text-center py-10">
+                    <div class="text-5xl mb-4">✅</div>
+                    <p class="text-xl font-bold text-green-400">TASK COMPLETED!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, deleteDoc, collection, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- USER PROVIDED CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpnVpwxEGu95Stwc7ZXU6o1sonCP0mO3I",
+            authDomain: "amongus-c7c6f.firebaseapp.com",
+            projectId: "amongus-c7c6f",
+            storageBucket: "amongus-c7c6f.firebasestorage.app",
+            messagingSenderId: "530693550302",
+            appId: "1:530693550302:web:d2a62971ab2bf581a9924f",
+            measurementId: "G-5R13WLS5WL"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'among-us-edu-shared';
+
+        // --- Game State ---
+        let currentUser = null;
+        let players = {};
+        let gameState = { status: 'lobby' };
+        let questions = [];
+        let currentTerminalTask = null;
+        const terminals = [ 
+            {id: 1, x: 250, y: 250}, {id: 2, x: 1200, y: 250}, 
+            {id: 3, x: 750, y: 750}, {id: 4, x: 250, y: 1200}, {id: 5, x: 1200, y: 1200} 
+        ];
+
+        const MAP_LIMIT = 1500;
+        const SPEED = 20;
+
+        // Correct Firestore Path Structure: artifacts/{appId}/public/data/{collectionName}
+        // Documents must have an even number of segments: artifacts/{appId}/public/data/{collectionName}/{docId}
+        const playersColl = collection(db, 'artifacts', appId, 'public', 'data', 'players');
+        const gameDoc = doc(db, 'artifacts', appId, 'public', 'data', 'game_state', 'active_session'); // Fixed: Added docId segment
+        const questionsColl = collection(db, 'artifacts', appId, 'public', 'data', 'questions');
+
+        // --- Navigation ---
+        window.switchView = (v) => {
+            ['lobby', 'game', 'teacher'].forEach(view => {
+                document.getElementById(`view-${view}`).hidden = (view !== v);
+                const btn = document.getElementById(`btn-${view}`);
+                if(btn) {
+                    btn.classList.toggle('bg-blue-600', view === v && view !== 'teacher');
+                    btn.classList.toggle('bg-purple-600', view === v && view === 'teacher');
+                }
+            });
+        };
+
+        // --- Core Logic ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                await setDoc(doc(playersColl, user.uid), {
+                    id: user.uid,
+                    name: `Player ${user.uid.slice(-4)}`,
+                    x: 750,
+                    y: 750,
+                    isAlive: true,
+                    role: 'crewmate',
+                    tasksCompleted: 0,
+                    lastActive: Date.now()
+                });
+                initApp();
+            } else {
+                signInAnonymously(auth);
+            }
+        });
+
+        function initApp() {
+            onSnapshot(playersColl, (snap) => {
+                players = {};
+                snap.forEach(d => players[d.id] = d.data());
+                renderLobby();
+                renderGame();
+            }, (err) => console.error("Players Listen Error:", err));
+
+            onSnapshot(gameDoc, (snap) => {
+                if (snap.exists()) {
+                    gameState = snap.data();
+                    if (gameState.status === 'active' && document.getElementById('view-game').hidden) {
+                        switchView('game');
+                    }
+                }
+            }, (err) => console.error("Game State Listen Error:", err));
+
+            onSnapshot(questionsColl, (snap) => {
+                questions = [];
+                snap.forEach(d => questions.push({id: d.id, ...d.data()}));
+                renderTeacherList();
+            }, (err) => console.error("Questions Listen Error:", err));
+        }
+
+        window.startGame = async () => {
+            const ids = Object.keys(players);
+            if (ids.length < 1) return;
+            const impId = ids[Math.floor(Math.random() * ids.length)];
+            for (let id of ids) {
+                await updateDoc(doc(playersColl, id), {
+                    role: id === impId ? 'impostor' : 'crewmate',
+                    isAlive: true,
+                    tasksCompleted: 0,
+                    x: 750 + (Math.random() * 100 - 50),
+                    y: 750 + (Math.random() * 100 - 50)
+                });
+            }
+            await setDoc(gameDoc, {
+                status: 'active',
+                startTime: Date.now(),
+                totalTasksGoal: (ids.length - 1) * 3,
+                currentGlobalTasks: 0
+            });
+        };
+
+        // --- UI Rendering ---
+        function renderLobby() {
+            const list = document.getElementById('player-list');
+            list.innerHTML = '';
+            const pArr = Object.values(players);
+            document.getElementById('player-count').innerText = `Players: ${pArr.length} / 10`;
+            pArr.forEach(p => {
+                const el = document.createElement('div');
+                el.className = `bg-slate-700/50 p-4 rounded-xl flex items-center gap-3 border border-slate-600 shadow-lg`;
+                el.innerHTML = `<div class="w-4 h-4 rounded-full ${p.id === currentUser.uid ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}"></div>
+                                <span class="font-bold tracking-tight">${p.name} ${p.id === currentUser.uid ? '(YOU)' : ''}</span>`;
+                list.appendChild(el);
+            });
+        }
+
+        function renderTeacherList() {
+            const list = document.getElementById('question-list');
+            list.innerHTML = '';
+            questions.forEach(q => {
+                const el = document.createElement('div');
+                el.className = 'bg-slate-900/50 p-4 rounded-xl flex justify-between items-center border border-slate-800';
+                el.innerHTML = `<div><p class="font-bold text-slate-200">${q.text}</p><p class="text-xs text-green-400 uppercase font-black tracking-wider mt-1">Ans: ${q.answer}</p></div>
+                                <button onclick="deleteQuestion('${q.id}')" class="text-red-500 hover:bg-red-500/10 p-2 rounded">Delete</button>`;
+                list.appendChild(el);
+            });
+        }
+
+        window.addQuestion = async () => {
+            const t = document.getElementById('q-text').value;
+            const a = document.getElementById('q-ans').value;
+            if (t && a) {
+                await addDoc(questionsColl, { text: t, answer: a.trim().toLowerCase() });
+                document.getElementById('q-text').value = '';
+                document.getElementById('q-ans').value = '';
+            }
+        };
+        window.deleteQuestion = (id) => deleteDoc(doc(questionsColl, id));
+
+        function renderGame() {
+            if (document.getElementById('view-game').hidden) return;
+            const me = players[currentUser.uid];
+            if (!me) return;
+
+            const mapContent = document.getElementById('map-content');
+            const rb = document.getElementById('role-badge');
+            rb.innerText = me.role;
+            rb.className = `text-xl font-black tracking-widest uppercase ${me.role === 'impostor' ? 'text-red-500' : 'text-blue-400'}`;
+
+            const progEl = document.getElementById('task-progress');
+            progEl.innerText = `${gameState.currentGlobalTasks || 0} / ${gameState.totalTasksGoal || 0}`;
+
+            mapContent.innerHTML = '';
+
+            // Render Terminals
+            terminals.forEach(t => {
+                const tel = document.createElement('div');
+                tel.className = "absolute w-20 h-20 bg-blue-600/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center animate-spin-slow";
+                tel.style.left = `${t.x}px`;
+                tel.style.top = `${t.y}px`;
+                tel.innerHTML = `<span class="text-2xl">⚙️</span>`;
+                mapContent.appendChild(tel);
+            });
+
+            // Action Detection
+            let actionBtn = document.getElementById('main-action-btn');
+            let container = document.getElementById('action-btn-container');
+            container.hidden = true;
+
+            // Render Players
+            Object.values(players).forEach(p => {
+                const pel = document.createElement('div');
+                pel.className = "absolute player-transition w-12 h-12 flex flex-col items-center z-20";
+                pel.style.left = `${p.x}px`;
+                pel.style.top = `${p.y}px`;
+
+                if (p.isAlive) {
+                    const isMe = p.id === currentUser.uid;
+                    const color = isMe ? (p.role === 'impostor' ? 'bg-red-600' : 'bg-blue-600') : 'bg-slate-600';
+                    pel.innerHTML = `
+                        <div class="relative w-10 h-10 ${color} rounded-xl border-2 border-slate-900 shadow-lg flex items-center justify-center">
+                             <div class="w-6 h-3 bg-white/30 rounded-full mt-1"></div>
+                        </div>
+                        <div class="text-[10px] bg-black/60 px-2 py-0.5 rounded-full whitespace-nowrap mt-1 font-bold">${p.name}</div>
+                    `;
+
+                    // Check Terminal Interaction
+                    if(isMe && p.role === 'crewmate') {
+                        terminals.forEach(t => {
+                            if(Math.hypot(p.x - t.x, p.y - t.y) < 80) {
+                                container.hidden = false;
+                                actionBtn.innerText = "Task";
+                                actionBtn.className = "w-24 h-24 rounded-full bg-blue-600 border-4 border-white shadow-2xl font-black text-white hover:bg-blue-500";
+                                actionBtn.onclick = () => openTask();
+                            }
+                        });
+                    }
+
+                    // Check Kill Action
+                    if(me.role === 'impostor' && !isMe && p.isAlive) {
+                        const dist = Math.hypot(me.x - p.x, me.y - p.y);
+                        if(dist < 100) {
+                            container.hidden = false;
+                            actionBtn.innerText = "Kill";
+                            actionBtn.className = "w-24 h-24 rounded-full bg-red-600 border-4 border-white shadow-2xl font-black text-white hover:bg-red-500";
+                            actionBtn.onclick = () => performKill(p.id);
+                        }
+                    }
+                } else {
+                    pel.innerHTML = `<span class="text-3xl filter grayscale opacity-60">💀</span>`;
+                }
+                mapContent.appendChild(pel);
+            });
+
+            // Camera follow
+            const viewW = window.innerWidth;
+            const viewH = window.innerHeight;
+            const camX = Math.max(0, Math.min(MAP_LIMIT - viewW, me.x - viewW / 2));
+            const camY = Math.max(0, Math.min(MAP_LIMIT - viewH, me.y - viewH / 2));
+            mapContent.style.transform = `translate(${-camX}px, ${-camY}px)`;
+        }
+
+        // --- Interaction Logic ---
+        async function performKill(targetId) {
+            await updateDoc(doc(playersColl, targetId), { isAlive: false });
+        }
+
+        window.openTask = () => {
+            if(questions.length === 0) {
+                alert("Teacher hasn't added any questions yet!");
+                return;
+            }
+            const win = document.getElementById('task-window');
+            const q = questions[Math.floor(Math.random() * questions.length)];
+            currentTerminalTask = q;
+            document.getElementById('task-question').innerText = q.text;
+            document.getElementById('task-input').value = '';
+            document.getElementById('task-content').classList.remove('hidden');
+            document.getElementById('task-success').classList.add('hidden');
+            win.hidden = false;
+        };
+
+        window.closeTask = () => document.getElementById('task-window').hidden = true;
+
+        window.submitTask = async () => {
+            const input = document.getElementById('task-input').value.trim().toLowerCase();
+            if(input === currentTerminalTask.answer) {
+                document.getElementById('task-content').classList.add('hidden');
+                document.getElementById('task-success').classList.remove('hidden');
+                
+                // Update global progress
+                const currentTasks = gameState.currentGlobalTasks || 0;
+                await updateDoc(gameDoc, { currentGlobalTasks: currentTasks + 1 });
+                
+                setTimeout(closeTask, 1500);
+            } else {
+                const field = document.getElementById('task-input');
+                field.classList.add('border-red-500');
+                setTimeout(() => field.classList.remove('border-red-500'), 500);
+            }
+        };
+
+        // --- Movement ---
+        window.moveLocal = (dx, dy) => {
+            const me = players[currentUser.uid];
+            if (!me || !me.isAlive || !document.getElementById('task-window').hidden) return;
+            let nx = Math.max(0, Math.min(MAP_LIMIT - 40, me.x + dx));
+            let ny = Math.max(0, Math.min(MAP_LIMIT - 40, me.y + dy));
+            updateDoc(doc(playersColl, currentUser.uid), { x: nx, y: ny, lastActive: Date.now() });
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (document.getElementById('view-game').hidden) return;
+            if (e.key === 'ArrowUp' || e.key === 'w') moveLocal(0, -SPEED);
+            if (e.key === 'ArrowDown' || e.key === 's') moveLocal(0, SPEED);
+            if (e.key === 'ArrowLeft' || e.key === 'a') moveLocal(-SPEED, 0);
+            if (e.key === 'ArrowRight' || e.key === 'd') moveLocal(SPEED, 0);
+        });
+
+        // Global Loop
+        setInterval(() => {
+            if (gameState.status === 'active' && gameState.startTime) {
+                const elapsed = Math.floor((Date.now() - gameState.startTime) / 1000);
+                const remain = 300 - elapsed;
+                const display = document.getElementById('timer-display');
+                if (remain <= 0) {
+                    display.innerText = "MISSION FAILED";
+                } else {
+                    const m = Math.floor(remain / 60);
+                    const s = remain % 60;
+                    display.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+                }
+            }
+        }, 1000);
+
+    </script>
+</body>
+</html>
