@@ -402,12 +402,14 @@
             gameDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'edu_sessions', code);
             playersCollRef = collection(db, 'artifacts', appId, 'public', 'data', 'edu_sessions', code, 'players');
             
-            // Add self to room
-            await setDoc(doc(playersCollRef, currentUser.uid), {
-                id: currentUser.uid,
-                name: `Player ${currentUser.uid.slice(-4)}`,
-                x: 750, y: 750, isAlive: true, role: 'crewmate', tasksCompleted: 0, lastActive: Date.now()
-            });
+            // Add self to room ONLY if student (not the teacher/host)
+            if (!isHost) {
+                await setDoc(doc(playersCollRef, currentUser.uid), {
+                    id: currentUser.uid,
+                    name: `Player ${currentUser.uid.slice(-4)}`,
+                    x: 750, y: 750, isAlive: true, role: 'crewmate', tasksCompleted: 0, lastActive: Date.now()
+                });
+            }
 
             if (unsubPlayers) unsubPlayers();
             unsubPlayers = onSnapshot(playersCollRef, (snap) => {
@@ -429,15 +431,30 @@
                     }
 
                     if (gameState.status === 'active') {
-                        if (document.getElementById('view-game').hidden) switchView('game');
-                        if (gameState.mazeGrid && gameState.mazeGrid !== drawnMazeVersion) {
-                            renderStaticMap(gameState.mazeGrid, gameState.terminals || []);
-                            drawnMazeVersion = gameState.mazeGrid;
+                        if (!isHost) {
+                            if (document.getElementById('view-game').hidden) switchView('game');
+                            if (gameState.mazeGrid && gameState.mazeGrid !== drawnMazeVersion) {
+                                renderStaticMap(gameState.mazeGrid, gameState.terminals || []);
+                                drawnMazeVersion = gameState.mazeGrid;
+                            }
+                        } else {
+                            // Update host's lobby view to reflect game is running
+                            document.getElementById('start-btn').classList.add('hidden');
+                            const msgEl = document.getElementById('wait-host-msg');
+                            msgEl.innerText = "MISSION IN PROGRESS - MONITORING STUDENTS";
+                            msgEl.classList.remove('hidden', 'text-yellow-500', 'animate-pulse');
+                            msgEl.classList.add('text-green-400');
                         }
                     } else if (gameState.status === 'lobby') {
                         document.getElementById('display-room-code').innerText = code;
                         document.getElementById('start-btn').classList.toggle('hidden', !isHost);
-                        document.getElementById('wait-host-msg').classList.toggle('hidden', isHost);
+                        
+                        const msgEl = document.getElementById('wait-host-msg');
+                        msgEl.innerText = "Waiting for teacher to start mission...";
+                        msgEl.classList.toggle('hidden', isHost);
+                        msgEl.classList.add('animate-pulse', 'text-yellow-500');
+                        msgEl.classList.remove('text-green-400');
+
                         if (document.getElementById('view-lobby').hidden) switchView('lobby');
                     }
                 } else {
@@ -674,7 +691,8 @@
                 // Determine Dynamic Impostors based on settings
                 const requestedImpostors = gameState.impostorCount || 1;
                 let impCount = Math.min(requestedImpostors, ids.length - 1); 
-                if (impCount < 1) impCount = 1; 
+                if (impCount < 1 && ids.length > 1) impCount = 1; 
+                if (ids.length === 1) impCount = 0; // Prevent lone tester from being forced as impostor with no crew
 
                 let shuffledIds = [...ids].sort(() => Math.random() - 0.5);
                 let impostorIds = shuffledIds.slice(0, impCount);
