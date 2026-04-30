@@ -104,6 +104,10 @@
         <!-- View: Teacher Mode (Collections List) -->
         <div id="view-teacher" class="flex-1 p-6 overflow-auto" hidden>
             <div class="max-w-4xl mx-auto space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-3xl font-black text-purple-400 uppercase tracking-widest">Your Collections</h2>
+                    <button onclick="logoutTeacher()" class="bg-slate-700 hover:bg-red-600 px-4 py-2 rounded-lg font-bold text-white transition text-sm">Logout Teacher</button>
+                </div>
                 <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex gap-4 items-end shadow-lg">
                     <div class="flex-1">
                         <label class="block text-slate-400 font-bold uppercase text-xs mb-2">Create New Collection</label>
@@ -112,6 +116,21 @@
                     <button onclick="createCollection(this)" class="bg-purple-600 hover:bg-purple-500 px-8 py-3 rounded-xl font-bold transition shadow-lg h-[50px] disabled:opacity-50">Create</button>
                 </div>
                 <div id="collections-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+        </div>
+
+        <!-- View: Teacher Login (Auth) -->
+        <div id="view-teacher-auth" class="flex-1 p-6 overflow-auto flex items-center justify-center" hidden>
+            <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md">
+                <h2 class="text-3xl font-black mb-6 text-purple-400 text-center uppercase tracking-widest">Teacher Portal</h2>
+                <div class="space-y-4">
+                    <input id="t-email" type="email" placeholder="Email Address" class="w-full bg-slate-900 border border-slate-600 p-4 rounded-xl outline-none focus:border-purple-500 text-white">
+                    <input id="t-pwd" type="password" placeholder="Password" class="w-full bg-slate-900 border border-slate-600 p-4 rounded-xl outline-none focus:border-purple-500 text-white">
+                    <div class="flex gap-4 mt-6">
+                        <button onclick="loginTeacher()" class="flex-1 bg-purple-600 hover:bg-purple-500 py-4 rounded-xl font-black transition shadow-lg text-white uppercase tracking-wider">Login</button>
+                        <button onclick="registerTeacher()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-4 rounded-xl font-black transition shadow-lg text-white uppercase tracking-wider">Register</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -124,6 +143,24 @@
                         <h2 id="edit-col-name" class="text-3xl font-black text-purple-400">Collection Name</h2>
                     </div>
                     <button onclick="hostSessionFromEdit()" class="bg-green-600 hover:bg-green-500 px-8 py-4 rounded-xl font-black text-white shadow-xl transition transform hover:scale-105 uppercase tracking-wider">HOST GAME</button>
+                </div>
+
+                <!-- Collection Settings -->
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
+                    <h3 class="text-xl font-bold mb-4 flex justify-between items-center">
+                        Game Settings
+                        <button onclick="saveCollectionSettings(this)" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg font-bold transition text-sm text-white">Save Settings</button>
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs text-slate-400 font-bold uppercase block mb-1">Impostor Count</label>
+                            <input id="set-impostors" type="number" min="1" max="5" value="1" class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg outline-none focus:border-purple-500 text-white">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400 font-bold uppercase block mb-1">Tasks per Crewmate</label>
+                            <input id="set-tasks" type="number" min="1" max="10" value="3" class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg outline-none focus:border-purple-500 text-white">
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
@@ -167,7 +204,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, updateDoc, deleteDoc, collection, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- USER PROVIDED CONFIG ---
@@ -220,7 +257,14 @@
 
         // --- Navigation ---
         window.switchView = (v) => {
-            ['home', 'lobby', 'game', 'teacher', 'teacher-edit'].forEach(view => {
+            // Auth Guard for Teacher Routes
+            if (v === 'teacher' || v === 'teacher-edit') {
+                if (!currentUser || currentUser.isAnonymous) {
+                    v = 'teacher-auth';
+                }
+            }
+
+            ['home', 'lobby', 'game', 'teacher', 'teacher-auth', 'teacher-edit'].forEach(view => {
                 const el = document.getElementById(`view-${view}`);
                 if (el) el.hidden = (view !== v);
                 const btn = document.getElementById(`btn-${view.split('-')[0]}`);
@@ -234,7 +278,7 @@
             }
         };
 
-        // --- Core Logic ---
+        // --- Core Auth Logic ---
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -263,13 +307,72 @@
 
         initAuth();
 
+        window.loginTeacher = async () => {
+            const e = document.getElementById('t-email').value;
+            const p = document.getElementById('t-pwd').value;
+            if (!e || !p) { alert("Enter email and password."); return; }
+            try {
+                await signInWithEmailAndPassword(auth, e, p);
+                document.getElementById('t-pwd').value = '';
+                switchView('teacher');
+            } catch (err) { alert("Login failed: " + err.message); }
+        };
+
+        window.registerTeacher = async () => {
+            const e = document.getElementById('t-email').value;
+            const p = document.getElementById('t-pwd').value;
+            if (!e || !p) { alert("Enter email and password."); return; }
+            try {
+                await createUserWithEmailAndPassword(auth, e, p);
+                document.getElementById('t-pwd').value = '';
+                switchView('teacher');
+            } catch (err) { alert("Registration failed: " + err.message); }
+        };
+
+        window.logoutTeacher = async () => {
+            try {
+                await signOut(auth);
+                await signInAnonymously(auth); // Fallback to student mode
+                switchView('home');
+            } catch (err) { console.error("Logout error", err); }
+        };
+
         // --- Session / Room Logic ---
         window.joinSession = async () => {
             const code = document.getElementById('room-code-input').value.trim().toUpperCase();
             if (!code) { alert("Please enter a room code!"); return; }
-            currentRoomCode = code;
-            isHost = false;
-            await setupRoom(code);
+            
+            const btn = document.querySelector('#view-home button');
+            const originalText = btn.innerText;
+
+            try {
+                btn.innerText = "JOINING...";
+                btn.disabled = true;
+
+                // 1. Check if the session actually exists FIRST
+                const checkRef = doc(db, 'artifacts', appId, 'public', 'data', 'edu_sessions', code);
+                const docSnap = await getDoc(checkRef);
+                
+                if (!docSnap.exists()) {
+                    alert(`Room ${code} not found! Make sure the teacher has hosted the game and the code is correct.`);
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 2. If it exists, proceed to join
+                currentRoomCode = code;
+                isHost = false;
+                await setupRoom(code);
+
+                btn.innerText = originalText;
+                btn.disabled = false;
+            } catch (error) {
+                console.error("Join Error:", error);
+                alert("Failed to join room: " + error.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         };
 
         window.hostSessionFromEdit = async () => {
@@ -279,10 +382,16 @@
             currentRoomCode = code;
             isHost = true;
             
+            // Fetch latest settings from memory or inputs
+            const impostorCount = parseInt(document.getElementById('set-impostors').value) || 1;
+            const tasksPerPlayer = parseInt(document.getElementById('set-tasks').value) || 3;
+
             gameDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'edu_sessions', code);
             await setDoc(gameDocRef, {
                 status: 'lobby',
                 collectionId: viewEditColId,
+                impostorCount: impostorCount,
+                tasksPerPlayer: tasksPerPlayer,
                 createdAt: Date.now()
             });
 
@@ -370,13 +479,17 @@
                 return;
             }
 
-            try {
-                // Show loading state on the button
-                const originalText = btn.innerText;
-                btn.innerText = "Saving...";
-                btn.disabled = true;
+            const originalText = btn.innerText;
+            btn.innerText = "Saving...";
+            btn.disabled = true;
 
-                await addDoc(collectionsCollRef, { name, createdAt: Date.now() });
+            try {
+                await addDoc(collectionsCollRef, { 
+                    name, 
+                    impostorCount: 1, 
+                    tasksPerPlayer: 3, 
+                    createdAt: Date.now() 
+                });
                 nameInput.value = '';
 
                 // Restore button
@@ -390,9 +503,11 @@
             }
         };
 
-        window.openCollection = (id, name) => {
+        window.openCollection = (id, name, impCount, tasksCount) => {
             viewEditColId = id;
             document.getElementById('edit-col-name').innerText = name;
+            document.getElementById('set-impostors').value = impCount || 1;
+            document.getElementById('set-tasks').value = tasksCount || 3;
             switchView('teacher-edit');
             
             if (unsubEditQuestions) unsubEditQuestions();
@@ -444,13 +559,32 @@
             deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'edu_collections', viewEditColId, 'questions', qId));
         };
 
+        window.saveCollectionSettings = async (btn) => {
+            if (!viewEditColId) return;
+            const originalText = btn.innerText;
+            btn.innerText = "Saving...";
+            try {
+                const impostorCount = parseInt(document.getElementById('set-impostors').value) || 1;
+                const tasksPerPlayer = parseInt(document.getElementById('set-tasks').value) || 3;
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'edu_collections', viewEditColId), {
+                    impostorCount,
+                    tasksPerPlayer
+                });
+                btn.innerText = "Saved!";
+                setTimeout(() => btn.innerText = originalText, 2000);
+            } catch (err) {
+                alert("Failed to save settings.");
+                btn.innerText = originalText;
+            }
+        };
+
         function renderTeacherCollections() {
             const list = document.getElementById('collections-list');
             list.innerHTML = '';
             teacherCollections.forEach(c => {
                 const el = document.createElement('div');
                 el.className = 'bg-slate-900/50 p-6 rounded-xl border border-slate-700 shadow flex justify-between items-center hover:bg-slate-800 transition cursor-pointer group';
-                el.onclick = () => openCollection(c.id, c.name);
+                el.onclick = () => openCollection(c.id, c.name, c.impostorCount, c.tasksPerPlayer);
                 el.innerHTML = `
                     <span class="font-bold text-lg text-slate-200 group-hover:text-purple-400 transition">${c.name}</span>
                     <span class="text-slate-500 font-bold text-sm bg-slate-800 px-3 py-1 rounded">Edit ➔</span>
@@ -530,7 +664,14 @@
                     return;
                 }
                 
-                const impId = ids[Math.floor(Math.random() * ids.length)];
+                // Determine Dynamic Impostors based on settings
+                const requestedImpostors = gameState.impostorCount || 1;
+                let impCount = Math.min(requestedImpostors, ids.length - 1); 
+                if (impCount < 1) impCount = 1; 
+
+                let shuffledIds = [...ids].sort(() => Math.random() - 0.5);
+                let impostorIds = shuffledIds.slice(0, impCount);
+                
                 const mazeGrid = generateMazeData();
                 
                 // Find all valid floor tiles to place terminals
@@ -554,7 +695,7 @@
 
                 for (let id of ids) {
                     await updateDoc(doc(playersCollRef, id), {
-                        role: id === impId ? 'impostor' : 'crewmate',
+                        role: impostorIds.includes(id) ? 'impostor' : 'crewmate',
                         isAlive: true,
                         tasksCompleted: 0,
                         x: 15 * CELL_SIZE + (Math.random() * 20 - 10), // Spawn strictly in the central room
@@ -562,10 +703,14 @@
                     });
                 }
                 
+                // Calculate Dynamic Tasks Required
+                const tasksPerPlayer = gameState.tasksPerPlayer || 3;
+                const totalCrewmates = ids.length - impCount;
+
                 await updateDoc(gameDocRef, {
                     status: 'active',
                     startTime: Date.now(),
-                    totalTasksGoal: Math.max(1, (ids.length - 1) * 3), 
+                    totalTasksGoal: Math.max(1, totalCrewmates * tasksPerPlayer), 
                     currentGlobalTasks: 0,
                     mazeGrid: JSON.stringify(mazeGrid),
                     terminals: newTerminals
