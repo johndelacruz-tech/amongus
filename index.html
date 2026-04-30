@@ -462,7 +462,13 @@
         function loadTeacherCollections() {
             unsubCollections = onSnapshot(collectionsCollRef, (snap) => {
                 teacherCollections = [];
-                snap.forEach(d => teacherCollections.push({id: d.id, ...d.data()}));
+                snap.forEach(d => {
+                    const data = d.data();
+                    // Filter in memory: Only add if the collection belongs to the current teacher
+                    if (data.teacherId === currentUser.uid) {
+                        teacherCollections.push({id: d.id, ...data});
+                    }
+                });
                 renderTeacherCollections();
             }, (error) => {
                 console.error("Error loading collections:", error);
@@ -488,7 +494,8 @@
                     name, 
                     impostorCount: 1, 
                     tasksPerPlayer: 3, 
-                    createdAt: Date.now() 
+                    createdAt: Date.now(),
+                    teacherId: currentUser.uid // Attach the current teacher's ID
                 });
                 nameInput.value = '';
 
