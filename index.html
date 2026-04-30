@@ -120,7 +120,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, updateDoc, deleteDoc, collection, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- USER PROVIDED CONFIG ---
@@ -172,24 +172,47 @@
         };
 
         // --- Core Logic ---
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        // This might fail since you are using your own custom Firebase Config
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (tokenErr) {
+                        console.warn("Custom token mismatch (expected with custom config). Falling back to anonymous.", tokenErr);
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                alert("Failed to authenticate. Make sure 'Anonymous' sign-in is enabled in your Firebase Console.");
+            }
+        };
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                await setDoc(doc(playersColl, user.uid), {
-                    id: user.uid,
-                    name: `Player ${user.uid.slice(-4)}`,
-                    x: 750,
-                    y: 750,
-                    isAlive: true,
-                    role: 'crewmate',
-                    tasksCompleted: 0,
-                    lastActive: Date.now()
-                });
-                initApp();
-            } else {
-                signInAnonymously(auth);
+                try {
+                    await setDoc(doc(playersColl, user.uid), {
+                        id: user.uid,
+                        name: `Player ${user.uid.slice(-4)}`,
+                        x: 750,
+                        y: 750,
+                        isAlive: true,
+                        role: 'crewmate',
+                        tasksCompleted: 0,
+                        lastActive: Date.now()
+                    });
+                    initApp();
+                } catch (e) {
+                    console.error("Failed to initialize player:", e);
+                }
             }
         });
+
+        initAuth();
 
         function initApp() {
             onSnapshot(playersColl, (snap) => {
@@ -216,24 +239,32 @@
         }
 
         window.startGame = async () => {
-            const ids = Object.keys(players);
-            if (ids.length < 1) return;
-            const impId = ids[Math.floor(Math.random() * ids.length)];
-            for (let id of ids) {
-                await updateDoc(doc(playersColl, id), {
-                    role: id === impId ? 'impostor' : 'crewmate',
-                    isAlive: true,
-                    tasksCompleted: 0,
-                    x: 750 + (Math.random() * 100 - 50),
-                    y: 750 + (Math.random() * 100 - 50)
+            try {
+                const ids = Object.keys(players);
+                if (ids.length < 1) {
+                    alert("Need at least 1 player to start!");
+                    return;
+                }
+                const impId = ids[Math.floor(Math.random() * ids.length)];
+                for (let id of ids) {
+                    await updateDoc(doc(playersColl, id), {
+                        role: id === impId ? 'impostor' : 'crewmate',
+                        isAlive: true,
+                        tasksCompleted: 0,
+                        x: 750 + (Math.random() * 100 - 50),
+                        y: 750 + (Math.random() * 100 - 50)
+                    });
+                }
+                await setDoc(gameDoc, {
+                    status: 'active',
+                    startTime: Date.now(),
+                    totalTasksGoal: Math.max(1, (ids.length - 1) * 3), // Ensure there is a reachable goal
+                    currentGlobalTasks: 0
                 });
+            } catch (error) {
+                console.error("Failed to start game:", error);
+                alert("Failed to start game! Check your connection or database permissions.");
             }
-            await setDoc(gameDoc, {
-                status: 'active',
-                startTime: Date.now(),
-                totalTasksGoal: (ids.length - 1) * 3,
-                currentGlobalTasks: 0
-            });
         };
 
         // --- UI Rendering ---
