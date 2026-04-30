@@ -30,21 +30,37 @@
                 <h1 class="text-xl font-bold tracking-tight uppercase">Among Us <span class="text-blue-400">Edu</span></h1>
             </div>
             <div class="flex gap-2">
-                <button onclick="switchView('lobby')" id="btn-lobby" class="px-4 py-1.5 rounded-lg bg-blue-600 font-bold transition text-sm">Lobby</button>
+                <button onclick="switchView('home')" id="btn-home" class="px-4 py-1.5 rounded-lg bg-blue-600 font-bold transition text-sm">Home</button>
                 <button onclick="switchView('teacher')" id="btn-teacher" class="px-4 py-1.5 rounded-lg hover:bg-slate-700 font-bold transition text-sm">Teacher Mode</button>
             </div>
         </nav>
 
+        <!-- View: Home (Landing) -->
+        <div id="view-home" class="flex-1 p-6 overflow-auto flex items-center justify-center">
+            <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center max-w-md w-full">
+                <h2 class="text-4xl font-black mb-6 italic">JOIN MISSION</h2>
+                <input id="room-code-input" type="text" placeholder="ENTER ROOM CODE" class="w-full bg-slate-900 border-2 border-slate-600 p-4 rounded-xl text-center text-3xl font-black uppercase mb-6 focus:border-blue-500 outline-none tracking-widest text-white">
+                <button onclick="joinSession()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 text-xl tracking-widest">
+                    JOIN ROOM
+                </button>
+            </div>
+        </div>
+
         <!-- View: Lobby -->
-        <div id="view-lobby" class="flex-1 p-6 overflow-auto">
+        <div id="view-lobby" class="flex-1 p-6 overflow-auto" hidden>
             <div class="max-w-2xl mx-auto space-y-6 mt-10">
-                <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center">
+                <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center relative">
                     <h2 class="text-4xl font-black mb-2 italic">WAITING ROOM</h2>
+                    <div class="mb-4 bg-slate-900 inline-block px-6 py-2 rounded-lg border border-slate-600">
+                        <span class="text-slate-400 text-sm font-bold block uppercase">Room Code</span>
+                        <span id="display-room-code" class="text-4xl font-mono font-black tracking-widest text-blue-400">----</span>
+                    </div>
                     <p class="text-slate-400 mb-6 text-lg" id="player-count">Players: 0 / 10</p>
                     <div id="player-list" class="grid grid-cols-2 gap-4 mb-8"></div>
-                    <button onclick="startGame()" id="start-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-5 rounded-2xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 text-xl tracking-widest">
+                    <button id="start-btn" onclick="startGame()" class="hidden w-full bg-green-600 hover:bg-green-500 text-white font-black py-5 rounded-2xl shadow-xl transition-all transform hover:scale-[1.02] active:scale-95 text-xl tracking-widest">
                         START MISSION
                     </button>
+                    <p id="wait-host-msg" class="text-yellow-500 font-bold hidden text-lg animate-pulse">Waiting for teacher to start mission...</p>
                 </div>
             </div>
         </div>
@@ -78,23 +94,54 @@
 
             <!-- Game Map -->
             <div id="game-map" class="relative bg-slate-950 w-full h-full overflow-hidden">
-                <div id="map-content" class="absolute w-[1500px] h-[1500px] ship-grid">
-                    <!-- Dynamic Assets -->
+                <div id="map-content" class="absolute w-[1550px] h-[1550px] bg-slate-900 transition-transform duration-75">
+                    <div id="static-map" class="absolute inset-0"></div>
+                    <div id="dynamic-map" class="absolute inset-0"></div>
                 </div>
             </div>
         </div>
 
-        <!-- View: Teacher Mode -->
+        <!-- View: Teacher Mode (Collections List) -->
         <div id="view-teacher" class="flex-1 p-6 overflow-auto" hidden>
             <div class="max-w-4xl mx-auto space-y-6">
-                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                    <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">👨‍🏫 Question Database</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input id="q-text" type="text" placeholder="Question (e.g. 12 + 15 = ?)" class="bg-slate-900 border border-slate-600 p-3 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
-                        <input id="q-ans" type="text" placeholder="Answer" class="bg-slate-900 border border-slate-600 p-3 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex gap-4 items-end shadow-lg">
+                    <div class="flex-1">
+                        <label class="block text-slate-400 font-bold uppercase text-xs mb-2">Create New Collection</label>
+                        <input id="col-name" type="text" placeholder="Collection Name (e.g., Math Quiz 1)" class="w-full bg-slate-900 border border-slate-600 p-3 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
                     </div>
-                    <button onclick="addQuestion()" class="mt-4 bg-purple-600 hover:bg-purple-500 px-8 py-3 rounded-xl font-bold transition w-full shadow-lg">Save Question</button>
+                    <button onclick="createCollection(this)" class="bg-purple-600 hover:bg-purple-500 px-8 py-3 rounded-xl font-bold transition shadow-lg h-[50px] disabled:opacity-50">Create</button>
                 </div>
+                <div id="collections-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+        </div>
+
+        <!-- View: Teacher Edit Collection -->
+        <div id="view-teacher-edit" class="flex-1 p-6 overflow-auto" hidden>
+            <div class="max-w-4xl mx-auto space-y-6">
+                <div class="flex justify-between items-center bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
+                    <div>
+                        <button onclick="switchView('teacher')" class="text-slate-400 hover:text-white text-sm font-bold uppercase mb-2 block transition">← Back to Collections</button>
+                        <h2 id="edit-col-name" class="text-3xl font-black text-purple-400">Collection Name</h2>
+                    </div>
+                    <button onclick="hostSessionFromEdit()" class="bg-green-600 hover:bg-green-500 px-8 py-4 rounded-xl font-black text-white shadow-xl transition transform hover:scale-105 uppercase tracking-wider">HOST GAME</button>
+                </div>
+                
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-lg">
+                    <h3 class="text-xl font-bold mb-4">Add Questions</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <input id="q-text" type="text" placeholder="Question (e.g. 12 + 15 = ?)" class="bg-slate-900 border border-slate-600 p-3 rounded-lg outline-none focus:border-purple-500">
+                        <input id="q-ans" type="text" placeholder="Answer" class="bg-slate-900 border border-slate-600 p-3 rounded-lg outline-none focus:border-purple-500">
+                    </div>
+                    <div class="flex gap-4">
+                        <button onclick="addQuestion()" class="bg-purple-600 hover:bg-purple-500 px-6 py-3 rounded-lg font-bold transition flex-1 shadow-lg">Add Manually</button>
+                        <div class="flex-1 relative">
+                            <input type="file" accept=".csv" onchange="handleCSVImport(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                            <button class="w-full bg-slate-700 border border-slate-600 px-6 py-3 rounded-lg font-bold transition hover:bg-slate-600 text-center pointer-events-none shadow-lg">Import CSV</button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-3 text-center">CSV Format: <b>Question, Answer</b> (one per line). File must not have headers.</p>
+                </div>
+                
                 <div id="question-list" class="space-y-3"></div>
             </div>
         </div>
@@ -139,36 +186,52 @@
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'among-us-edu-shared';
 
-        // --- Game State ---
+        // --- Game State & Refs ---
         let currentUser = null;
         let players = {};
         let gameState = { status: 'lobby' };
         let questions = [];
+        let teacherCollections = [];
         let currentTerminalTask = null;
-        const terminals = [ 
-            {id: 1, x: 250, y: 250}, {id: 2, x: 1200, y: 250}, 
-            {id: 3, x: 750, y: 750}, {id: 4, x: 250, y: 1200}, {id: 5, x: 1200, y: 1200} 
-        ];
+        let drawnMazeVersion = null;
+        
+        // Session / Room Trackers
+        let currentRoomCode = null;
+        let isHost = false;
+        let activeCollectionId = null;
+        let viewEditColId = null; 
 
-        const MAP_LIMIT = 1500;
+        // Dynamic Refs
+        let playersCollRef = null;
+        let gameDocRef = null;
+        
+        let unsubPlayers = null;
+        let unsubGame = null;
+        let unsubQuestions = null;
+        let unsubCollections = null;
+        let unsubEditQuestions = null;
+
+        const CELL_SIZE = 50;
+        const GRID_SIZE = 31;
+        const MAP_LIMIT = CELL_SIZE * GRID_SIZE; // 1550
         const SPEED = 20;
 
-        // Correct Firestore Path Structure: artifacts/{appId}/public/data/{collectionName}
-        // Documents must have an even number of segments: artifacts/{appId}/public/data/{collectionName}/{docId}
-        const playersColl = collection(db, 'artifacts', appId, 'public', 'data', 'players');
-        const gameDoc = doc(db, 'artifacts', appId, 'public', 'data', 'game_state', 'active_session'); // Fixed: Added docId segment
-        const questionsColl = collection(db, 'artifacts', appId, 'public', 'data', 'questions');
+        const collectionsCollRef = collection(db, 'artifacts', appId, 'public', 'data', 'edu_collections');
 
         // --- Navigation ---
         window.switchView = (v) => {
-            ['lobby', 'game', 'teacher'].forEach(view => {
-                document.getElementById(`view-${view}`).hidden = (view !== v);
-                const btn = document.getElementById(`btn-${view}`);
+            ['home', 'lobby', 'game', 'teacher', 'teacher-edit'].forEach(view => {
+                const el = document.getElementById(`view-${view}`);
+                if (el) el.hidden = (view !== v);
+                const btn = document.getElementById(`btn-${view.split('-')[0]}`);
                 if(btn) {
-                    btn.classList.toggle('bg-blue-600', view === v && view !== 'teacher');
-                    btn.classList.toggle('bg-purple-600', view === v && view === 'teacher');
+                    btn.classList.toggle('bg-blue-600', view.startsWith('home') && view === v);
+                    btn.classList.toggle('bg-purple-600', view.startsWith('teacher') && view === v);
                 }
             });
+            if (v === 'teacher' && !unsubCollections) {
+                loadTeacherCollections();
+            }
         };
 
         // --- Core Logic ---
@@ -194,72 +257,318 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                try {
-                    await setDoc(doc(playersColl, user.uid), {
-                        id: user.uid,
-                        name: `Player ${user.uid.slice(-4)}`,
-                        x: 750,
-                        y: 750,
-                        isAlive: true,
-                        role: 'crewmate',
-                        tasksCompleted: 0,
-                        lastActive: Date.now()
-                    });
-                    initApp();
-                } catch (e) {
-                    console.error("Failed to initialize player:", e);
-                }
+                // Players now wait on the Home screen to input a room code manually
             }
         });
 
         initAuth();
 
-        function initApp() {
-            onSnapshot(playersColl, (snap) => {
+        // --- Session / Room Logic ---
+        window.joinSession = async () => {
+            const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+            if (!code) { alert("Please enter a room code!"); return; }
+            currentRoomCode = code;
+            isHost = false;
+            await setupRoom(code);
+        };
+
+        window.hostSessionFromEdit = async () => {
+            if (!viewEditColId) return;
+            // Generate Random 5-character Code
+            const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+            currentRoomCode = code;
+            isHost = true;
+            
+            gameDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'edu_sessions', code);
+            await setDoc(gameDocRef, {
+                status: 'lobby',
+                collectionId: viewEditColId,
+                createdAt: Date.now()
+            });
+
+            await setupRoom(code);
+        };
+
+        async function setupRoom(code) {
+            gameDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'edu_sessions', code);
+            playersCollRef = collection(db, 'artifacts', appId, 'public', 'data', 'edu_sessions', code, 'players');
+            
+            // Add self to room
+            await setDoc(doc(playersCollRef, currentUser.uid), {
+                id: currentUser.uid,
+                name: `Player ${currentUser.uid.slice(-4)}`,
+                x: 750, y: 750, isAlive: true, role: 'crewmate', tasksCompleted: 0, lastActive: Date.now()
+            });
+
+            if (unsubPlayers) unsubPlayers();
+            unsubPlayers = onSnapshot(playersCollRef, (snap) => {
                 players = {};
                 snap.forEach(d => players[d.id] = d.data());
                 renderLobby();
                 renderGame();
             }, (err) => console.error("Players Listen Error:", err));
 
-            onSnapshot(gameDoc, (snap) => {
+            if (unsubGame) unsubGame();
+            unsubGame = onSnapshot(gameDocRef, (snap) => {
                 if (snap.exists()) {
                     gameState = snap.data();
-                    if (gameState.status === 'active' && document.getElementById('view-game').hidden) {
-                        switchView('game');
+                    
+                    // Fetch the questions for this room's linked collection
+                    if (gameState.collectionId && activeCollectionId !== gameState.collectionId) {
+                        activeCollectionId = gameState.collectionId;
+                        listenToGameQuestions(activeCollectionId);
+                    }
+
+                    if (gameState.status === 'active') {
+                        if (document.getElementById('view-game').hidden) switchView('game');
+                        if (gameState.mazeGrid && gameState.mazeGrid !== drawnMazeVersion) {
+                            renderStaticMap(gameState.mazeGrid, gameState.terminals || []);
+                            drawnMazeVersion = gameState.mazeGrid;
+                        }
+                    } else if (gameState.status === 'lobby') {
+                        document.getElementById('display-room-code').innerText = code;
+                        document.getElementById('start-btn').classList.toggle('hidden', !isHost);
+                        document.getElementById('wait-host-msg').classList.toggle('hidden', isHost);
+                        if (document.getElementById('view-lobby').hidden) switchView('lobby');
+                    }
+                } else {
+                    if(!isHost) {
+                        alert("Room not found or session ended.");
+                        switchView('home');
                     }
                 }
             }, (err) => console.error("Game State Listen Error:", err));
+        }
 
-            onSnapshot(questionsColl, (snap) => {
+        function listenToGameQuestions(colId) {
+            if (unsubQuestions) unsubQuestions();
+            const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'edu_collections', colId, 'questions');
+            unsubQuestions = onSnapshot(qRef, (snap) => {
                 questions = [];
                 snap.forEach(d => questions.push({id: d.id, ...d.data()}));
-                renderTeacherList();
-            }, (err) => console.error("Questions Listen Error:", err));
+            });
+        }
+
+        // --- Teacher Dashboard Logic ---
+        function loadTeacherCollections() {
+            unsubCollections = onSnapshot(collectionsCollRef, (snap) => {
+                teacherCollections = [];
+                snap.forEach(d => teacherCollections.push({id: d.id, ...d.data()}));
+                renderTeacherCollections();
+            }, (error) => {
+                console.error("Error loading collections:", error);
+                alert("Failed to load collections: " + error.message);
+            });
+        }
+
+        window.createCollection = async (btn) => {
+            const nameInput = document.getElementById('col-name');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                alert("Please enter a collection name first!");
+                return;
+            }
+
+            try {
+                // Show loading state on the button
+                const originalText = btn.innerText;
+                btn.innerText = "Saving...";
+                btn.disabled = true;
+
+                await addDoc(collectionsCollRef, { name, createdAt: Date.now() });
+                nameInput.value = '';
+
+                // Restore button
+                btn.innerText = originalText;
+                btn.disabled = false;
+            } catch (error) {
+                console.error("Create Collection Error:", error);
+                alert("Error creating collection! " + error.message);
+                btn.innerText = "Create";
+                btn.disabled = false;
+            }
+        };
+
+        window.openCollection = (id, name) => {
+            viewEditColId = id;
+            document.getElementById('edit-col-name').innerText = name;
+            switchView('teacher-edit');
+            
+            if (unsubEditQuestions) unsubEditQuestions();
+            const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'edu_collections', id, 'questions');
+            unsubEditQuestions = onSnapshot(qRef, (snap) => {
+                const qs = [];
+                snap.forEach(d => qs.push({id: d.id, ...d.data()}));
+                renderEditQuestions(qs);
+            });
+        };
+
+        window.addQuestion = async () => {
+            if (!viewEditColId) return;
+            const t = document.getElementById('q-text').value;
+            const a = document.getElementById('q-ans').value;
+            if (t && a) {
+                const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'edu_collections', viewEditColId, 'questions');
+                await addDoc(qRef, { text: t, answer: a.trim().toLowerCase() });
+                document.getElementById('q-text').value = '';
+                document.getElementById('q-ans').value = '';
+            }
+        };
+
+        window.handleCSVImport = (event) => {
+            const file = event.target.files[0];
+            if (!file || !viewEditColId) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const lines = e.target.result.split('\n');
+                const qRef = collection(db, 'artifacts', appId, 'public', 'data', 'edu_collections', viewEditColId, 'questions');
+                for (let line of lines) {
+                    const parts = line.split(',');
+                    if (parts.length >= 2) {
+                        const q = parts[0];
+                        // Handles answers that might accidentally have a comma split
+                        const a = parts.slice(1).join(',').trim(); 
+                        if (q && a) {
+                            await addDoc(qRef, { text: q.trim(), answer: a.toLowerCase() });
+                        }
+                    }
+                }
+                event.target.value = ''; // Reset file input
+            };
+            reader.readAsText(file);
+        };
+
+        window.deleteQuestion = (qId) => {
+            if (!viewEditColId) return;
+            deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'edu_collections', viewEditColId, 'questions', qId));
+        };
+
+        function renderTeacherCollections() {
+            const list = document.getElementById('collections-list');
+            list.innerHTML = '';
+            teacherCollections.forEach(c => {
+                const el = document.createElement('div');
+                el.className = 'bg-slate-900/50 p-6 rounded-xl border border-slate-700 shadow flex justify-between items-center hover:bg-slate-800 transition cursor-pointer group';
+                el.onclick = () => openCollection(c.id, c.name);
+                el.innerHTML = `
+                    <span class="font-bold text-lg text-slate-200 group-hover:text-purple-400 transition">${c.name}</span>
+                    <span class="text-slate-500 font-bold text-sm bg-slate-800 px-3 py-1 rounded">Edit ➔</span>
+                `;
+                list.appendChild(el);
+            });
+            if(teacherCollections.length === 0) {
+                list.innerHTML = `<p class="text-slate-500 italic col-span-2">No collections yet. Create one above!</p>`;
+            }
+        }
+
+        function renderEditQuestions(qs) {
+            const list = document.getElementById('question-list');
+            list.innerHTML = '';
+            qs.forEach(q => {
+                const el = document.createElement('div');
+                el.className = 'bg-slate-900/50 p-4 rounded-xl flex justify-between items-center border border-slate-800';
+                el.innerHTML = `<div><p class="font-bold text-slate-200">${q.text}</p><p class="text-xs text-green-400 uppercase font-black tracking-wider mt-1">Ans: ${q.answer}</p></div>
+                                <button onclick="deleteQuestion('${q.id}')" class="text-red-500 hover:bg-red-500/10 p-2 rounded transition">Delete</button>`;
+                list.appendChild(el);
+            });
+        }
+
+        function generateMazeData() {
+            // 1 = Wall, 0 = Path
+            let grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(1));
+            let stack = [[1, 1]];
+            grid[1][1] = 0;
+            
+            // Recursive Backtracker Maze Generation
+            while (stack.length > 0) {
+                let [r, c] = stack[stack.length - 1];
+                let neighbors = [];
+                [[ -2, 0 ], [ 0, 2 ], [ 2, 0 ], [ 0, -2 ]].forEach(([dr, dc]) => {
+                    let nr = r + dr, nc = c + dc;
+                    if (nr > 0 && nr < GRID_SIZE - 1 && nc > 0 && nc < GRID_SIZE - 1 && grid[nr][nc] === 1) {
+                        neighbors.push([nr, nc, r + dr/2, c + dc/2]);
+                    }
+                });
+                
+                if (neighbors.length > 0) {
+                    let [nr, nc, pr, pc] = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    grid[pr][pc] = 0;
+                    grid[nr][nc] = 0;
+                    stack.push([nr, nc]);
+                } else {
+                    stack.pop();
+                }
+            }
+            
+            // Remove some random walls to create loops (so players don't get permanently stuck)
+            for(let i=0; i<100; i++) {
+                let r = Math.floor(Math.random() * (GRID_SIZE-2)) + 1;
+                let c = Math.floor(Math.random() * (GRID_SIZE-2)) + 1;
+                grid[r][c] = 0;
+            }
+            
+            // Carve out a 3x3 starting room in the center
+            for(let r=14; r<=16; r++) {
+                for(let c=14; c<=16; c++) {
+                    grid[r][c] = 0;
+                }
+            }
+            return grid;
         }
 
         window.startGame = async () => {
             try {
+                if (!isHost) return;
                 const ids = Object.keys(players);
                 if (ids.length < 1) {
                     alert("Need at least 1 player to start!");
                     return;
                 }
+                if (questions.length === 0) {
+                    alert("This collection has no questions! Please add some first.");
+                    return;
+                }
+                
                 const impId = ids[Math.floor(Math.random() * ids.length)];
+                const mazeGrid = generateMazeData();
+                
+                // Find all valid floor tiles to place terminals
+                let floors = [];
+                for(let r=1; r<GRID_SIZE-1; r++) {
+                    for(let c=1; c<GRID_SIZE-1; c++) {
+                        // Don't place terminals in the spawn room (rows 14-16, cols 14-16)
+                        if(mazeGrid[r][c] === 0 && !(r>=14 && r<=16 && c>=14 && c<=16)) {
+                            floors.push({r, c});
+                        }
+                    }
+                }
+                
+                // Shuffle floors and pick 5 random terminal spots
+                floors.sort(() => Math.random() - 0.5);
+                let newTerminals = [];
+                for(let i=0; i<5; i++) {
+                    let f = floors.pop();
+                    newTerminals.push({ id: i+1, x: f.c * CELL_SIZE, y: f.r * CELL_SIZE });
+                }
+
                 for (let id of ids) {
-                    await updateDoc(doc(playersColl, id), {
+                    await updateDoc(doc(playersCollRef, id), {
                         role: id === impId ? 'impostor' : 'crewmate',
                         isAlive: true,
                         tasksCompleted: 0,
-                        x: 750 + (Math.random() * 100 - 50),
-                        y: 750 + (Math.random() * 100 - 50)
+                        x: 15 * CELL_SIZE + (Math.random() * 20 - 10), // Spawn strictly in the central room
+                        y: 15 * CELL_SIZE + (Math.random() * 20 - 10)
                     });
                 }
-                await setDoc(gameDoc, {
+                
+                await updateDoc(gameDocRef, {
                     status: 'active',
                     startTime: Date.now(),
-                    totalTasksGoal: Math.max(1, (ids.length - 1) * 3), // Ensure there is a reachable goal
-                    currentGlobalTasks: 0
+                    totalTasksGoal: Math.max(1, (ids.length - 1) * 3), 
+                    currentGlobalTasks: 0,
+                    mazeGrid: JSON.stringify(mazeGrid),
+                    terminals: newTerminals
                 });
             } catch (error) {
                 console.error("Failed to start game:", error);
@@ -282,35 +591,43 @@
             });
         }
 
-        function renderTeacherList() {
-            const list = document.getElementById('question-list');
-            list.innerHTML = '';
-            questions.forEach(q => {
-                const el = document.createElement('div');
-                el.className = 'bg-slate-900/50 p-4 rounded-xl flex justify-between items-center border border-slate-800';
-                el.innerHTML = `<div><p class="font-bold text-slate-200">${q.text}</p><p class="text-xs text-green-400 uppercase font-black tracking-wider mt-1">Ans: ${q.answer}</p></div>
-                                <button onclick="deleteQuestion('${q.id}')" class="text-red-500 hover:bg-red-500/10 p-2 rounded">Delete</button>`;
-                list.appendChild(el);
+        function renderStaticMap(mazeStr, termList) {
+            const staticMap = document.getElementById('static-map');
+            staticMap.innerHTML = '';
+            const grid = JSON.parse(mazeStr);
+
+            // Draw maze walls
+            for(let r=0; r<GRID_SIZE; r++) {
+                for(let c=0; c<GRID_SIZE; c++) {
+                    if(grid[r][c] === 1) {
+                        const wall = document.createElement('div');
+                        wall.className = 'absolute bg-slate-800 border-[1px] border-slate-700 shadow-xl';
+                        wall.style.left = `${c * CELL_SIZE}px`;
+                        wall.style.top = `${r * CELL_SIZE}px`;
+                        wall.style.width = `${CELL_SIZE}px`;
+                        wall.style.height = `${CELL_SIZE}px`;
+                        staticMap.appendChild(wall);
+                    }
+                }
+            }
+
+            // Draw terminals inside the maze
+            termList.forEach(t => {
+                const tel = document.createElement('div');
+                tel.className = "absolute w-[50px] h-[50px] bg-blue-600/30 border-2 border-blue-500 rounded-lg flex items-center justify-center animate-spin-slow";
+                tel.style.left = `${t.x}px`;
+                tel.style.top = `${t.y}px`;
+                tel.innerHTML = `<span class="text-xl drop-shadow-md">⚙️</span>`;
+                staticMap.appendChild(tel);
             });
         }
-
-        window.addQuestion = async () => {
-            const t = document.getElementById('q-text').value;
-            const a = document.getElementById('q-ans').value;
-            if (t && a) {
-                await addDoc(questionsColl, { text: t, answer: a.trim().toLowerCase() });
-                document.getElementById('q-text').value = '';
-                document.getElementById('q-ans').value = '';
-            }
-        };
-        window.deleteQuestion = (id) => deleteDoc(doc(questionsColl, id));
 
         function renderGame() {
             if (document.getElementById('view-game').hidden) return;
             const me = players[currentUser.uid];
             if (!me) return;
 
-            const mapContent = document.getElementById('map-content');
+            const dynamicMap = document.getElementById('dynamic-map');
             const rb = document.getElementById('role-badge');
             rb.innerText = me.role;
             rb.className = `text-xl font-black tracking-widest uppercase ${me.role === 'impostor' ? 'text-red-500' : 'text-blue-400'}`;
@@ -318,22 +635,14 @@
             const progEl = document.getElementById('task-progress');
             progEl.innerText = `${gameState.currentGlobalTasks || 0} / ${gameState.totalTasksGoal || 0}`;
 
-            mapContent.innerHTML = '';
-
-            // Render Terminals
-            terminals.forEach(t => {
-                const tel = document.createElement('div');
-                tel.className = "absolute w-20 h-20 bg-blue-600/20 border-2 border-blue-500 rounded-2xl flex items-center justify-center animate-spin-slow";
-                tel.style.left = `${t.x}px`;
-                tel.style.top = `${t.y}px`;
-                tel.innerHTML = `<span class="text-2xl">⚙️</span>`;
-                mapContent.appendChild(tel);
-            });
+            dynamicMap.innerHTML = '';
 
             // Action Detection
             let actionBtn = document.getElementById('main-action-btn');
             let container = document.getElementById('action-btn-container');
             container.hidden = true;
+
+            const activeTerminals = gameState.terminals || [];
 
             // Render Players
             Object.values(players).forEach(p => {
@@ -354,8 +663,9 @@
 
                     // Check Terminal Interaction
                     if(isMe && p.role === 'crewmate') {
-                        terminals.forEach(t => {
-                            if(Math.hypot(p.x - t.x, p.y - t.y) < 80) {
+                        activeTerminals.forEach(t => {
+                            // Check distance from player center to terminal center
+                            if(Math.hypot((p.x+20) - (t.x+25), (p.y+20) - (t.y+25)) < 60) {
                                 container.hidden = false;
                                 actionBtn.innerText = "Task";
                                 actionBtn.className = "w-24 h-24 rounded-full bg-blue-600 border-4 border-white shadow-2xl font-black text-white hover:bg-blue-500";
@@ -377,12 +687,13 @@
                 } else {
                     pel.innerHTML = `<span class="text-3xl filter grayscale opacity-60">💀</span>`;
                 }
-                mapContent.appendChild(pel);
+                dynamicMap.appendChild(pel);
             });
 
             // Camera follow
             const viewW = window.innerWidth;
             const viewH = window.innerHeight;
+            const mapContent = document.getElementById('map-content');
             const camX = Math.max(0, Math.min(MAP_LIMIT - viewW, me.x - viewW / 2));
             const camY = Math.max(0, Math.min(MAP_LIMIT - viewH, me.y - viewH / 2));
             mapContent.style.transform = `translate(${-camX}px, ${-camY}px)`;
@@ -390,7 +701,7 @@
 
         // --- Interaction Logic ---
         async function performKill(targetId) {
-            await updateDoc(doc(playersColl, targetId), { isAlive: false });
+            await updateDoc(doc(playersCollRef, targetId), { isAlive: false });
         }
 
         window.openTask = () => {
@@ -418,7 +729,7 @@
                 
                 // Update global progress
                 const currentTasks = gameState.currentGlobalTasks || 0;
-                await updateDoc(gameDoc, { currentGlobalTasks: currentTasks + 1 });
+                await updateDoc(gameDocRef, { currentGlobalTasks: currentTasks + 1 });
                 
                 setTimeout(closeTask, 1500);
             } else {
@@ -432,9 +743,36 @@
         window.moveLocal = (dx, dy) => {
             const me = players[currentUser.uid];
             if (!me || !me.isAlive || !document.getElementById('task-window').hidden) return;
+            
             let nx = Math.max(0, Math.min(MAP_LIMIT - 40, me.x + dx));
             let ny = Math.max(0, Math.min(MAP_LIMIT - 40, me.y + dy));
-            updateDoc(doc(playersColl, currentUser.uid), { x: nx, y: ny, lastActive: Date.now() });
+
+            // Collision Detection with Maze Walls
+            if (gameState.mazeGrid) {
+                const grid = JSON.parse(gameState.mazeGrid);
+                const size = 30; // player hitbox size
+                const offset = 5; // player hitbox offset
+                const left = nx + offset;
+                const right = nx + size + offset;
+                const top = ny + offset;
+                const bottom = ny + size + offset;
+
+                // Check all 4 corners of the player hitbox
+                const corners = [ [left, top], [right, top], [left, bottom], [right, bottom] ];
+                
+                let isColliding = false;
+                for (let [cx, cy] of corners) {
+                    let col = Math.floor(cx / CELL_SIZE);
+                    let row = Math.floor(cy / CELL_SIZE);
+                    if (row >= 0 && col >= 0 && row < GRID_SIZE && col < GRID_SIZE) {
+                        if (grid[row][col] === 1) isColliding = true;
+                    }
+                }
+                
+                if (isColliding) return; // Halt movement if hitting a wall
+            }
+
+            updateDoc(doc(playersCollRef, currentUser.uid), { x: nx, y: ny, lastActive: Date.now() });
         };
 
         window.addEventListener('keydown', (e) => {
